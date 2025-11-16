@@ -12,6 +12,9 @@ import androidx.room.Room
 import com.example.lab_week_10.database.Total
 import com.example.lab_week_10.database.TotalDatabase
 import com.example.lab_week_10.viewmodels.TotalViewModel
+import android.widget.Toast
+import com.example.lab_week_10.database.TotalObject
+import java.util.Date
 
 
 class MainActivity : AppCompatActivity() {
@@ -33,7 +36,33 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        db.totalDao().update(Total(ID, viewModel.total.value!!))
+        val currentDate = java.util.Date().toString()
+        db.totalDao().update(
+            Total(
+                ID,
+                TotalObject(
+                    value = viewModel.total.value ?: 0,
+                    date = currentDate
+                )
+            )
+        )
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        val total = db.totalDao().getTotal(ID)
+        if (total.isNotEmpty()) {
+            val lastDate = total.first().total.date
+
+            if (lastDate.isNotEmpty()) {
+                Toast.makeText(
+                    this,
+                    "Last updated: $lastDate",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
 
     private fun updateText(total: Int) {
@@ -55,15 +84,20 @@ class MainActivity : AppCompatActivity() {
         return Room.databaseBuilder(
             applicationContext,
             TotalDatabase::class.java, "total-database"
-        ).allowMainThreadQueries().build()
+        ).fallbackToDestructiveMigration().allowMainThreadQueries().build()
     }
 
     private fun initializeValueFromDatabase() {
         val total = db.totalDao().getTotal(ID)
         if (total.isEmpty()) {
-            db.totalDao().insert(Total(id = 1, total = 0))
+            db.totalDao().insert(
+                Total(
+                    id = ID,
+                    total = TotalObject(value = 0, date = "")
+                )
+            )
         } else {
-            viewModel.setTotal(total.first().total)
+            viewModel.setTotal(total.first().total.value)
         }
     }
 
